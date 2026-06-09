@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#E8DDF2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Dropnote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #E8DDF2;
+            --bg-elevated: #F2EDF7;
+            --surface: rgba(255, 255, 255, 0.62);
+            --surface-hover: rgba(255, 255, 255, 0.78);
+            --surface-active: rgba(255, 255, 255, 0.92);
+            --border: rgba(180, 175, 200, 0.35);
+            --border-hover: rgba(160, 155, 185, 0.50);
+            --accent: #8B7EC8;
+            --accent-dim: rgba(139, 126, 200, 0.14);
+            --accent-glow: rgba(139, 126, 200, 0.30);
+            --text: #2D2B3A;
+            --text-secondary: #6E6B7B;
+            --text-tertiary: #9B97A8;
+            --error: #E05555;
+            --error-dim: rgba(224, 85, 85, 0.12);
+            --warning: #E8A040;
+            --info: #6B9BD2;
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --transition: 0.22s cubic-bezier(0.25, 0.1, 0.25, 1);
+            --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            --font-body: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'PingFang SC', monospace;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+        body {
+            font-family: var(--font-body);
+            font-weight: 400;
+            font-size: 15px;
+            line-height: 1.55;
+            color: var(--text);
+            background: linear-gradient(145deg, #C5DFF0 0%, #D4E6F5 18%, #E8DDF2 42%, #F5E0E8 68%, #FAD4DF 100%);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+            overscroll-behavior-y: none;
+        }
+
+        /* ── Background ambience ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 45% at 15% 20%, rgba(180, 210, 240, 0.18), transparent),
+                radial-gradient(ellipse 60% 50% at 85% 80%, rgba(245, 185, 200, 0.16), transparent),
+                radial-gradient(ellipse 50% 35% at 50% 50%, rgba(200, 180, 225, 0.08), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Keyframes ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(24px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes tabIndicator {
+            from { transform: scaleX(0); }
+            to   { transform: scaleX(1); }
+        }
+
+        .anim-fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .anim-slide-in { animation: slideInRight 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .d0 { animation-delay: 0s; }
+        .d1 { animation-delay: 0.07s; }
+        .d2 { animation-delay: 0.14s; }
+        .d3 { animation-delay: 0.21s; }
+        .d4 { animation-delay: 0.28s; }
+        .d5 { animation-delay: 0.35s; }
+
+        /* ── App Container ── */
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            padding-bottom: calc(72px + env(safe-area-inset-bottom));
+        }
+
+        /* ── Header ── */
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(20px) saturate(1.6);
+            -webkit-backdrop-filter: blur(20px) saturate(1.6);
+            background: rgba(255, 255, 255, 0.58);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 20px calc(10px + env(safe-area-inset-top));
+            padding-top: calc(14px + env(safe-area-inset-top));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-mark {
+            width: 32px; height: 32px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--accent), #A78BFA);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-mono); font-weight: 600;
+            font-size: 0.85rem; color: var(--bg);
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+        .brand-text {
+            font-family: var(--font-body); font-weight: 700;
+            font-size: 1.1rem; letter-spacing: -0.02em;
+            color: var(--text);
+        }
+        .brand-sub {
+            font-size: 0.6rem; font-weight: 500;
+            text-transform: uppercase; letter-spacing: 0.12em;
+            color: var(--text-tertiary);
+        }
+
+        .header-action {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .header-action:active { transform: scale(0.92); background: var(--surface-active); }
+
+        /* ── Tab Content ── */
+        .tab-content {
+            display: none;
+            padding: 16px 16px 24px;
+            animation: fadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .tab-content.active { display: block; }
+
+        /* ── Section Title ── */
+        .section-title {
+            font-family: var(--font-body); font-weight: 600;
+            font-size: 1.15rem; letter-spacing: -0.01em;
+            color: var(--text); margin-bottom: 4px;
+        }
+        .section-desc {
+            font-size: 0.78rem; color: var(--text-tertiary);
+            margin-bottom: 20px; line-height: 1.5;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 18px;
+            margin-bottom: 14px;
+            transition: border-color var(--transition), transform var(--transition);
+        }
+        .card:active { transform: scale(0.995); }
+        .card-header {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .card-icon {
+            width: 36px; height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--accent-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; color: var(--accent);
+            flex-shrink: 0;
+        }
+        .card-icon.purple { background: rgba(139, 92, 246, 0.12); color: #A78BFA; }
+        .card-icon.blue { background: rgba(91, 141, 239, 0.12); color: var(--info); }
+        .card-icon.orange { background: rgba(251, 146, 60, 0.12); color: #FB923C; }
+        .card-icon.red { background: var(--error-dim); color: var(--error); }
+        .card-title {
+            font-weight: 600; font-size: 0.92rem;
+            color: var(--text); letter-spacing: -0.01em;
+        }
+        .card-subtitle {
+            font-size: 0.72rem; color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        /* ── Form Fields ── */
+        .field { margin-bottom: 14px; }
+        .field:last-child { margin-bottom: 0; }
+
+        label {
+            display: block; font-weight: 500;
+            font-size: 0.72rem; text-transform: uppercase;
+            letter-spacing: 0.08em; color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-body); font-weight: 400;
+            font-size: 15px; color: var(--text);
+            background: var(--bg-elevated);
+            transition: border-color var(--transition), box-shadow var(--transition);
+            outline: none; resize: vertical;
+            -webkit-appearance: none; appearance: none;
+        }
+        input::placeholder, textarea::placeholder {
+            color: var(--text-tertiary); font-style: italic;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+        textarea { min-height: 100px; line-height: 1.6; }
+
+        /* ── Dropzone ── */
+        .dropzone {
+            position: relative;
+            border: 2px dashed var(--border-hover);
+            border-radius: var(--radius-md);
+            padding: 32px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            background: var(--bg-elevated);
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .dropzone input[type="file"] {
+            position: absolute; inset: 0;
+            opacity: 0; cursor: pointer;
+            width: 100%; height: 100%;
+        }
+        .dropzone-icon {
+            font-size: 2rem; margin-bottom: 8px;
+            display: block; opacity: 0.7;
+        }
+        .dropzone-text {
+            font-weight: 600; font-size: 0.85rem;
+            color: var(--text); margin-bottom: 4px;
+        }
+        .dropzone-hint {
+            font-size: 0.72rem; color: var(--text-tertiary);
+        }
+
+        /* ── Chips ── */
+        .chips {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            margin-top: 12px;
+        }
+        .chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono); font-size: 0.72rem;
+            color: var(--text); word-break: break-all; max-width: 100%;
+        }
+        .chip .size { color: var(--text-tertiary); font-size: 0.66rem; white-space: nowrap; }
+        .chip .remove {
+            cursor: pointer; color: var(--text-tertiary);
+            font-size: 1rem; line-height: 1;
+            border: none; background: none; padding: 0;
+            min-width: 24px; min-height: 24px;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: color var(--transition);
+        }
+        .chip .remove:active { color: var(--error); }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px; width: 100%;
+            padding: 14px 20px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-body); font-weight: 600;
+            font-size: 0.82rem; letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all var(--transition);
+            outline: none; background: transparent;
+            color: var(--text-secondary);
+            border-color: var(--border);
+            min-height: 48px;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none; user-select: none;
+            touch-action: manipulation;
+        }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #A78BFA);
+            color: var(--bg); border-color: transparent;
+            font-weight: 700;
+            box-shadow: 0 4px 16px rgba(139, 126, 200, 0.25);
+        }
+        .btn-primary:active:not(:disabled) {
+            box-shadow: 0 2px 8px rgba(139, 126, 200, 0.2);
+        }
+
+        .btn-ghost {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+        .btn-ghost-danger {
+            background: var(--error-dim);
+            color: var(--error);
+            border-color: rgba(255, 90, 90, 0.2);
+        }
+
+        .btn-sm {
+            padding: 8px 14px; min-height: 36px;
+            font-size: 0.72rem;
+        }
+
+        .btn-loading .btn-label { display: none; }
+        .btn-loading .btn-spin { display: inline-flex; }
+        .btn-spin { display: none; align-items: center; gap: 6px; }
+
+        .spinner {
+            width: 14px; height: 14px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        .spinner-lg { width: 20px; height: 20px; border-width: 2.5px; }
+
+        /* ── Progress ── */
+        .progress-area {
+            margin-top: 14px; display: none;
+        }
+        .progress-label {
+            font-family: var(--font-mono); font-size: 0.72rem;
+            color: var(--text-secondary); margin-bottom: 6px;
+            display: flex; justify-content: space-between;
+        }
+        .progress-track {
+            width: 100%; height: 4px;
+            background: var(--border);
+            border-radius: 2px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, var(--accent), #A78BFA);
+            border-radius: 2px; transition: width 0.3s ease;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ── Banner / Alert ── */
+        .banner {
+            margin-top: 12px;
+            padding: 12px 14px;
+            font-size: 0.8rem; line-height: 1.5;
+            display: none;
+            border-radius: var(--radius-sm);
+            animation: fadeUp 0.3s ease forwards;
+            word-break: break-word;
+        }
+        .banner strong {
+            font-weight: 600; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            display: block; margin-bottom: 4px;
+        }
+        .banner.show { display: block; }
+        .banner.success { background: rgba(139, 126, 200, 0.1); color: #6B5FA0; border: 1px solid rgba(139, 126, 200, 0.2); }
+        .banner.error { background: var(--error-dim); color: #D04040; border: 1px solid rgba(224, 85, 85, 0.2); }
+        .banner.info { background: rgba(107, 155, 210, 0.1); color: #4A7DB8; border: 1px solid rgba(107, 155, 210, 0.2); }
+        .banner code {
+            font-family: var(--font-mono); font-size: 0.72rem;
+            background: rgba(45, 43, 58, 0.06); padding: 1px 6px; border-radius: 4px;
+        }
+
+        .file-log { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+        .file-log-item {
+            display: flex; align-items: center; gap: 6px;
+            font-family: var(--font-mono); font-size: 0.72rem;
+            padding: 4px 8px; background: rgba(45, 43, 58, 0.04);
+            border-radius: 6px; word-break: break-all;
+        }
+        .file-log-item .fname { color: var(--text); word-break: break-all; }
+        .file-log-item .fsize { color: var(--text-tertiary); margin-left: auto; font-size: 0.66rem; white-space: nowrap; padding-left: 8px; }
+
+        /* ── Segmented Control ── */
+        .segmented {
+            display: flex;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+        .segmented-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-body); font-weight: 600;
+            font-size: 0.78rem; cursor: pointer;
+            transition: all var(--transition);
+            text-align: center;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none; user-select: none;
+        }
+        .segmented-btn.active {
+            background: var(--bg-elevated);
+            color: var(--text);
+            box-shadow: 0 1px 6px rgba(45, 43, 58, 0.08);
+        }
+        .segmented-btn:active { transform: scale(0.97); }
+
+        /* ── File List ── */
+        .file-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .file-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            display: flex; align-items: flex-start; gap: 12px;
+            transition: all var(--transition);
+            animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+        .file-item:active { background: var(--surface-hover); transform: scale(0.995); }
+        .file-item-icon {
+            width: 38px; height: 38px;
+            border-radius: var(--radius-sm);
+            background: var(--accent-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; color: var(--accent);
+            flex-shrink: 0; margin-top: 2px;
+        }
+        .file-item-icon.download { background: rgba(91, 141, 239, 0.12); color: var(--info); }
+        .file-item-body { flex: 1; min-width: 0; }
+        .file-item-name {
+            font-family: var(--font-mono); font-weight: 500;
+            font-size: 0.8rem; color: var(--text);
+            word-break: break-all; line-height: 1.4;
+            margin-bottom: 4px;
+        }
+        .file-item-preview {
+            font-size: 0.8rem; color: var(--text-secondary);
+            line-height: 1.45; margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .file-item-meta {
+            display: flex; gap: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem; color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .file-item-actions {
+            display: flex; gap: 6px;
+            flex-shrink: 0;
+        }
+        .file-item-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-body); font-weight: 600;
+            font-size: 0.65rem; text-transform: uppercase;
+            letter-spacing: 0.04em; cursor: pointer;
+            transition: all var(--transition);
+            min-height: 34px;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none; user-select: none;
+            touch-action: manipulation;
+        }
+        .file-item-btn:active { transform: scale(0.95); }
+        .file-item-btn.copy { color: var(--accent); border-color: rgba(139, 126, 200, 0.30); }
+        .file-item-btn.copy:active { background: var(--accent); color: var(--bg); }
+        .file-item-btn.copy.copied { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .file-item-btn.delete { color: var(--error); border-color: rgba(255, 90, 90, 0.2); }
+        .file-item-btn.delete:active { background: var(--error); color: #fff; }
+        .file-item-btn.download { color: var(--info); border-color: rgba(91, 141, 239, 0.2); }
+        .file-item-btn.download:active { background: var(--info); color: #fff; }
+
+        .list-empty {
+            text-align: center; padding: 48px 20px;
+            color: var(--text-tertiary); font-style: italic;
+            font-size: 0.85rem;
+        }
+        .list-loading {
+            text-align: center; padding: 40px;
+            color: var(--text-tertiary);
+        }
+        .list-loading .spinner {
+            display: inline-block; margin-bottom: 10px;
+            border-color: var(--text-tertiary);
+            border-top-color: transparent;
+        }
+
+        /* ── Stats Grid ── */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 10px; margin-bottom: 20px;
+        }
+        .stat-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px 8px;
+            text-align: center;
+        }
+        .stat-box-value {
+            font-family: var(--font-mono); font-weight: 600;
+            font-size: 1.3rem; color: var(--accent);
+            line-height: 1; margin-bottom: 6px;
+        }
+        .stat-box-label {
+            font-size: 0.6rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-tertiary);
+        }
+
+        /* ── Tool Grid ── */
+        .tool-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .tool-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 18px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            -webkit-touch-callout: none;
+            -webkit-user-select: none; user-select: none;
+        }
+        .tool-item:active { transform: scale(0.96); background: var(--surface-hover); border-color: var(--border-hover); }
+        .tool-item-icon {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; margin: 0 auto 10px;
+        }
+        .tool-item-icon.accent { background: var(--accent-dim); color: var(--accent); }
+        .tool-item-icon.info { background: rgba(91, 141, 239, 0.12); color: var(--info); }
+        .tool-item-icon.warning { background: rgba(255, 184, 0, 0.12); color: var(--warning); }
+        .tool-item-icon.purple { background: rgba(139, 92, 246, 0.12); color: #A78BFA; }
+        .tool-item-title {
+            font-weight: 600; font-size: 0.82rem;
+            color: var(--text); margin-bottom: 4px;
+        }
+        .tool-item-desc {
+            font-size: 0.7rem; color: var(--text-tertiary);
+            line-height: 1.4;
+        }
+
+        /* ── Bottom Nav ── */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.60);
+            backdrop-filter: blur(24px) saturate(1.6);
+            -webkit-backdrop-filter: blur(24px) saturate(1.6);
+            border-top: 1px solid var(--border);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .bottom-nav-inner {
+            max-width: 480px; margin: 0 auto;
+            display: flex; align-items: center;
+            justify-content: space-around;
+            height: 64px;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 4px;
+            height: 100%;
+            border: none; background: none;
+            color: var(--text-tertiary);
+            font-family: var(--font-body); font-weight: 500;
+            font-size: 0.6rem; letter-spacing: 0.02em;
+            cursor: pointer;
+            position: relative;
+            transition: color var(--transition);
+            -webkit-touch-callout: none;
+            -webkit-user-select: none; user-select: none;
+            touch-action: manipulation;
+        }
+        .nav-item .nav-icon {
+            font-size: 1.3rem; line-height: 1;
+            transition: transform var(--transition-bounce), color var(--transition);
+        }
+        .nav-item.active { color: var(--accent); }
+        .nav-item.active .nav-icon { transform: translateY(-1px); }
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 50%; transform: translateX(-50%) scaleX(0);
+            width: 20px; height: 3px;
+            border-radius: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            transition: transform var(--transition-bounce);
+        }
+        .nav-item.active::after { transform: translateX(-50%) scaleX(1); }
+        .nav-item:active { opacity: 0.7; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            top: calc(16px + env(safe-area-inset-top));
+            left: 16px; right: 16px;
+            transform: translateY(-12px);
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.88);
+            color: var(--text);
+            font-family: var(--font-body); font-weight: 500;
+            font-size: 0.85rem; letter-spacing: 0.01em;
+            opacity: 0; pointer-events: none;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 9999;
+            text-align: center;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(45, 43, 58, 0.12);
+            max-width: 400px; margin: 0 auto;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(45, 43, 58, 0.30);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 200;
+            display: none; align-items: flex-end; justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-sheet {
+            background: var(--surface);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            width: 100%; max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-overlay.show .modal-sheet { transform: translateY(0); }
+        .modal-handle {
+            width: 36px; height: 4px;
+            background: var(--border-hover);
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+        .modal-title {
+            font-weight: 700; font-size: 1.1rem;
+            color: var(--text); margin-bottom: 4px;
+        }
+        .modal-subtitle {
+            font-size: 0.8rem; color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* ── Utilities ── */
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 12px; }
+        .mt-4 { margin-top: 16px; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .w-full { width: 100%; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.85rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-tertiary { color: var(--text-tertiary); }
+        .text-secondary { color: var(--text-secondary); }
+        .text-accent { color: var(--accent); }
+        .text-error { color: var(--error); }
+        .font-mono { font-family: var(--font-mono); }
+        .hidden { display: none !important; }
+
+        .icon {
+            width: 1em; height: 1em;
+            display: inline-block;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
+
+        /* ── Selection ── */
+        ::selection { background: var(--accent-dim); color: var(--accent); }
+    </style>
+</head>
+<body>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-mark">D</div>
+                <div>
+                    <div class="brand-text">Dropnote</div>
+                    <div class="brand-sub">File & Text Utility</div>
+                </div>
+            </div>
+            <button class="header-action" onclick="showTab('more')" title="设置">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </header>
+
+        <!-- ═══════ TAB: Upload ═══════ -->
+        <div class="tab-content active" id="tab-upload">
+            <div class="anim-fade-up d0">
+                <h2 class="section-title">上传中心</h2>
+                <p class="section-desc">文本速记与文件传输，安静而高效。</p>
+            </div>
+
+            <!-- Text Upload -->
+            <div class="card anim-fade-up d1">
+                <div class="card-header">
+                    <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+                    <div>
+                        <div class="card-title">文本上传</div>
+                        <div class="card-subtitle">保存为 JSON 文件</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="textFilename">文件名（可选）</label>
+                    <input type="text" id="textFilename" placeholder="留空则使用默认名称">
+                </div>
+                <div class="field">
+                    <label for="textContent">内容 <span style="color:var(--accent)">*</span></label>
+                    <textarea id="textContent" placeholder="输入要保存的文本..."></textarea>
+                </div>
+                <button class="btn btn-primary" id="textSubmitBtn" onclick="uploadText()">
+                    <span class="btn-label">提交文本</span>
+                    <span class="btn-spin"><div class="spinner"></div>处理中</span>
+                </button>
+                <div class="banner" id="textResult"></div>
+            </div>
+
+            <!-- File Upload -->
+            <div class="card anim-fade-up d2">
+                <div class="card-header">
+                    <div class="card-icon purple"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+                    <div>
+                        <div class="card-title">文件上传</div>
+                        <div class="card-subtitle">大于 1MB 自动分片，支持断点续传</div>
+                    </div>
+                </div>
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)">
+                    <span class="dropzone-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.4em;height:1.4em"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></span>
+                    <div class="dropzone-text">点击或拖拽选择文件</div>
+                    <div class="dropzone-hint">大文件自动分片上传</div>
+                </div>
+                <div class="chips" id="fileChips"></div>
+                <div class="progress-area" id="chunkProgressArea">
+                    <div class="progress-label">
+                        <span id="chunkProgressFile">分片上传</span>
+                        <span id="chunkProgressText">0/0</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="chunkProgressBar"></div>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3" id="fileSubmitBtn" onclick="uploadFiles()" disabled>
+                    <span class="btn-label">上传文件</span>
+                    <span class="btn-spin"><div class="spinner"></div>上传中</span>
+                </button>
+                <div class="banner" id="fileResult"></div>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB: Files ═══════ -->
+        <div class="tab-content" id="tab-files">
+            <div class="anim-fade-up d0">
+                <h2 class="section-title">文件库</h2>
+                <p class="section-desc">浏览、复制和管理已上传的文件。</p>
+            </div>
+
+            <div class="segmented anim-fade-up d1">
+                <button class="segmented-btn active" id="segRecent" onclick="switchFileSegment('recent')">最近文本</button>
+                <button class="segmented-btn" id="segDownload" onclick="switchFileSegment('download')">下载文件</button>
+            </div>
+
+            <!-- Recent Files List -->
+            <div id="files-recent" class="anim-fade-up d2">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-box-value" id="statTexts">&mdash;</div>
+                        <div class="stat-box-label">文本文件</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-value" id="statFiles">&mdash;</div>
+                        <div class="stat-box-label">上传文件</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-value" id="statSize">&mdash;</div>
+                        <div class="stat-box-label">总计占用</div>
+                    </div>
+                </div>
+                <div id="recentList">
+                    <div class="list-loading">
+                        <div class="spinner spinner-lg"></div>
+                        <div style="margin-top:8px;font-size:0.8rem;color:var(--text-tertiary)">加载中...</div>
+                    </div>
+                </div>
+                <div class="mt-3" style="display:flex;gap:8px;">
+                    <button class="btn btn-ghost" style="flex:1" onclick="loadRecentFiles()">
+                        <span id="refreshLabel">刷新列表</span>
+                    </button>
+                    <button class="btn btn-ghost-danger" style="flex:1" id="clearBtn" onclick="clearAllFiles()">
+                        <span class="btn-label">清空全部</span>
+                        <span class="btn-spin"><div class="spinner"></div>清空中</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Download Files List -->
+            <div id="files-download" class="hidden">
+                <div id="downloadList">
+                    <div class="list-empty">点击下方按钮加载文件列表</div>
+                </div>
+                <button class="btn btn-ghost mt-3 w-full" id="downloadRefreshBtn" onclick="loadDownloads()">
+                    <span id="downloadRefreshLabel">刷新列表</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB: Convert ═══════ -->
+        <div class="tab-content" id="tab-convert">
+            <div class="anim-fade-up d0">
+                <h2 class="section-title">格式转换</h2>
+                <p class="section-desc">PDF 页面提取为高清图片。</p>
+            </div>
+
+            <div class="card anim-fade-up d1">
+                <div class="card-header">
+                    <div class="card-icon orange"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+                    <div>
+                        <div class="card-title">PDF 转图片</div>
+                        <div class="card-subtitle">每页导出为独立图片，打包 ZIP 下载</div>
+                    </div>
+                </div>
+                <div class="dropzone" id="pdfDropzone" onclick="document.getElementById('pdfInput').click()">
+                    <span class="dropzone-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+                    <div class="dropzone-text">选择 PDF 文件</div>
+                    <div class="dropzone-hint">仅支持 .pdf 格式</div>
+                </div>
+                <input type="file" id="pdfInput" accept=".pdf" style="display:none" onchange="handlePdfSelect(event)">
+                <div class="chips" id="pdfChips"></div>
+                <div class="mt-3" id="pdfResultArea"></div>
+                <button class="btn btn-primary mt-3" id="pdfSubmitBtn" onclick="convertPdfToImages()" disabled>
+                    <span class="btn-label">开始转换</span>
+                    <span class="btn-spin"><div class="spinner"></div>转换中</span>
+                </button>
+                <div class="banner" id="pdfResult"></div>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB: More ═══════ -->
+        <div class="tab-content" id="tab-more">
+            <div class="anim-fade-up d0">
+                <h2 class="section-title">更多工具</h2>
+                <p class="section-desc">网关刷新、远程桌面与邮件发送。</p>
+            </div>
+
+            <div class="tool-grid anim-fade-up d1">
+                <div class="tool-item" onclick="refreshGateway()">
+                    <div class="tool-item-icon accent"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+                    <div class="tool-item-title">刷新网关</div>
+                    <div class="tool-item-desc">同步隧道信息</div>
+                </div>
+                <div class="tool-item" onclick="loadRemoteDesktop()">
+                    <div class="tool-item-icon info"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                    <div class="tool-item-title">远程桌面</div>
+                    <div class="tool-item-desc">获取连接地址</div>
+                </div>
+                <div class="tool-item" onclick="openQrModal()">
+                    <div class="tool-item-icon" style="background:rgba(34,197,94,0.12);color:#22c55e"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.2em;height:1.2em"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+                    <div class="tool-item-title">局域网二维码</div>
+                    <div class="tool-item-desc">扫码访问本机服务</div>
+                </div>
+                <div class="tool-item" onclick="openEmailModal()">
+                    <div class="tool-item-icon warning"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+                    <div class="tool-item-title">发送邮件</div>
+                    <div class="tool-item-desc">快速邮件推送</div>
+                </div>
+                <div class="tool-item" onclick="showAbout()">
+                    <div class="tool-item-icon purple"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                    <div class="tool-item-title">关于</div>
+                    <div class="tool-item-desc">Dropnote v1.0</div>
+                </div>
+            </div>
+
+            <!-- Remote Desktop Result -->
+            <div class="card anim-fade-up d2 hidden" id="rdCard">
+                <div class="card-header">
+                    <div class="card-icon blue"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                    <div>
+                        <div class="card-title">远程桌面地址</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <input type="text" id="rdAddress" readonly onclick="copyRdAddress()">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="copyRdAddress()">
+                    <span id="rdCopyLabel">复制地址</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="bottom-nav-inner">
+            <button class="nav-item active" data-tab="upload" onclick="showTab('upload')">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.4em;height:1.4em"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                <span>上传</span>
+            </button>
+            <button class="nav-item" data-tab="files" onclick="showTab('files')">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>文件</span>
+            </button>
+            <button class="nav-item" data-tab="convert" onclick="showTab('convert')">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <span>转换</span>
+            </button>
+            <button class="nav-item" data-tab="more" onclick="showTab('more')">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.3em;height:1.3em"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                <span>更多</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Email Modal -->
+    <div class="modal-overlay" id="emailModal" onclick="closeEmailModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-title">发送邮件</div>
+            <div class="modal-subtitle">通过 SMTP 快速发送邮件</div>
+            <div class="field">
+                <label for="emailTo">收件人</label>
+                <input type="email" id="emailTo" placeholder="recipient@example.com">
+            </div>
+            <div class="field">
+                <label for="emailSubject">主题</label>
+                <input type="text" id="emailSubject" placeholder="邮件主题">
+            </div>
+            <div class="field">
+                <label for="emailText">内容</label>
+                <textarea id="emailText" placeholder="邮件正文..."></textarea>
+            </div>
+            <button class="btn btn-primary" id="emailSubmitBtn" onclick="sendEmail()">
+                <span class="btn-label">发送邮件</span>
+                <span class="btn-spin"><div class="spinner"></div>发送中</span>
+            </button>
+            <div class="banner" id="emailResult"></div>
+        </div>
+    </div>
+    <!-- QR Code Modal -->
+    <div class="modal-overlay" id="qrModal" onclick="closeQrModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-title">局域网访问</div>
+            <div class="modal-subtitle">扫码或直接访问下方地址</div>
+            <div class="text-center" id="qrLoading" style="padding:20px;color:var(--text-tertiary)">
+                <div class="spinner" style="display:inline-block;margin-bottom:8px;border-color:var(--text-tertiary);border-top-color:transparent"></div>
+                <div style="font-size:0.8rem">加载中...</div>
+            </div>
+            <div id="qrContent" class="hidden">
+                <div class="text-center" style="margin-bottom:16px;">
+                    <img id="qrImage" src="" alt="QR Code" style="width:180px;height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+                </div>
+                <div class="field">
+                    <label>访问地址</label>
+                    <input type="text" id="qrUrl" readonly onclick="copyQrUrl()">
+                </div>
+                <div class="field">
+                    <label>局域网 IP</label>
+                    <input type="text" id="qrIp" readonly>
+                </div>
+                <button class="btn btn-primary" id="qrCopyBtn" onclick="copyQrUrl()">
+                    <span id="qrCopyLabel">复制地址</span>
+                </button>
+            </div>
+            <div class="banner" id="qrResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        const FETCH_TIMEOUT = 12000;
+        function fetchWithTimeout(url, options = {}) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+            return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+        }
+
+        /* ── Tab Switching ── */
+        let currentTab = 'upload';
+        function showTab(tabId) {
+            if (tabId === currentTab) return;
+            const contents = document.querySelectorAll('.tab-content');
+            const items = document.querySelectorAll('.nav-item');
+            contents.forEach(el => {
+                if (el.id === 'tab-' + tabId) {
+                    el.classList.add('active');
+                    // re-trigger animations
+                    el.querySelectorAll('.anim-fade-up, .anim-slide-in').forEach(a => {
+                        a.style.animation = 'none';
+                        void a.offsetHeight;
+                        const name = a.classList.contains('anim-slide-in') ? 'slideInRight' : 'fadeUp';
+                        const delay = parseFloat(getComputedStyle(a).animationDelay) || 0;
+                        a.style.animation = `${name} 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s forwards`;
+                    });
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+            items.forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tabId);
+            });
+            currentTab = tabId;
+            if (tabId === 'files') {
+                loadRecentFiles();
+                loadDownloads();
+            }
+        }
+
+        /* ── File Segment Switching ── */
+        function switchFileSegment(type) {
+            document.getElementById('segRecent').classList.toggle('active', type === 'recent');
+            document.getElementById('segDownload').classList.toggle('active', type === 'download');
+            document.getElementById('files-recent').classList.toggle('hidden', type !== 'recent');
+            document.getElementById('files-download').classList.toggle('hidden', type !== 'download');
+            if (type === 'recent') loadRecentFiles();
+            else loadDownloads();
+        }
+
+        /* ── Text Upload ── */
+        async function uploadText() {
+            const content = document.getElementById('textContent').value.trim();
+            const filename = document.getElementById('textFilename').value.trim();
+            const btn = document.getElementById('textSubmitBtn');
+            const result = document.getElementById('textResult');
+            if (!content) { showBanner(result, 'error', '请输入文本内容'); return; }
+            setLoading(btn, true); hideBanner(result);
+            try {
+                const response = await fetch(`${API_BASE}/api/text/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, filename: filename || null })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('textContent').value = '';
+                    document.getElementById('textFilename').value = '';
+                    showBanner(result, 'success', `<strong>保存成功</strong>${escapeHtml(data.message || '')}`);
+                    loadRecentFiles();
+                } else { showBanner(result, 'error', `<strong>保存失败</strong>${escapeHtml(data.message)}`); }
+            } catch (err) { showBanner(result, 'error', `<strong>请求失败</strong>${escapeHtml(err.message)}`); }
+            finally { setLoading(btn, false); }
+        }
+
+        /* ── File Upload (with chunks) ── */
+        const CHUNK_SIZE = 512 * 1024;
+        const CONCURRENT_LIMIT = 3;
+        let selectedFiles = [];
+        let isUploading = false;
+
+        function handleFileSelect(event) {
+            const newFiles = Array.from(event.target.files);
+            const existingNames = new Set(selectedFiles.map(f => f.name));
+            newFiles.forEach(f => { if (!existingNames.has(f.name)) selectedFiles.push(f); });
+            renderChips();
+        }
+        function removeFile(index) { selectedFiles.splice(index, 1); renderChips(); }
+        function renderChips() {
+            const chips = document.getElementById('fileChips');
+            const btn = document.getElementById('fileSubmitBtn');
+            if (selectedFiles.length === 0) { chips.innerHTML = ''; btn.disabled = true; return; }
+            chips.innerHTML = selectedFiles.map((file, i) => `
+                <span class="chip">
+                    <span>${escapeHtml(file.name)}</span>
+                    <span class="size">${formatSize(file.size)}</span>
+                    <button class="remove" onclick="removeFile(${i})" title="移除"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </span>`).join('');
+            btn.disabled = false;
+        }
+
+        function generateUploadId() {
+            return 'upload_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        async function uploadSingleChunk(file, uploadId, chunkIndex, totalChunks, retryCount = 0) {
+            const start = chunkIndex * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, file.size);
+            const chunk = file.slice(start, end);
+            const formData = new FormData();
+            formData.append('file', chunk, file.name);
+            formData.append('uploadId', uploadId);
+            formData.append('chunkIndex', chunkIndex);
+            formData.append('totalChunks', totalChunks);
+            formData.append('originalFilename', file.name);
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/file/chunk/upload`, { method: 'POST', body: formData });
+                return await response.json();
+            } catch (err) {
+                if (retryCount < 2) {
+                    await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
+                    return uploadSingleChunk(file, uploadId, chunkIndex, totalChunks, retryCount + 1);
+                }
+                throw err;
+            }
+        }
+
+        async function getChunkStatus(uploadId, totalChunks) {
+            const response = await fetch(`${API_BASE}/api/file/chunk/status?uploadId=${uploadId}&totalChunks=${totalChunks}`);
+            return await response.json();
+        }
+
+        async function mergeChunks(uploadId, totalChunks, originalFilename) {
+            const response = await fetch(`${API_BASE}/api/file/chunk/merge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId, totalChunks, originalFilename })
+            });
+            return await response.json();
+        }
+
+        function updateChunkProgress(uploaded, total, fileName) {
+            const area = document.getElementById('chunkProgressArea');
+            const fileEl = document.getElementById('chunkProgressFile');
+            const text = document.getElementById('chunkProgressText');
+            const bar = document.getElementById('chunkProgressBar');
+            area.style.display = 'block';
+            fileEl.textContent = fileName;
+            text.textContent = `${uploaded}/${total}`;
+            bar.style.width = (total > 0 ? (uploaded / total) * 100 : 0) + '%';
+        }
+
+        function hideChunkProgress() {
+            document.getElementById('chunkProgressArea').style.display = 'none';
+            document.getElementById('chunkProgressBar').style.width = '0%';
+        }
+
+        async function uploadFileWithChunks(file) {
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            const uploadId = generateUploadId();
+            if (file.size <= CHUNK_SIZE) {
+                const formData = new FormData();
+                formData.append('files', file);
+                const response = await fetch(`${API_BASE}/api/file/upload`, { method: 'POST', body: formData });
+                return await response.json();
+            }
+            let status = await getChunkStatus(uploadId, totalChunks);
+            let uploadedChunks = new Set(status.uploadedChunks || []);
+            const missingChunks = [];
+            for (let i = 0; i < totalChunks; i++) {
+                if (!uploadedChunks.has(i)) missingChunks.push(i);
+            }
+            let completed = uploadedChunks.size;
+            updateChunkProgress(completed, totalChunks, file.name);
+            const uploadChunkBatch = async (chunkIndices) => {
+                const promises = chunkIndices.map(async (chunkIndex) => {
+                    const result = await uploadSingleChunk(file, uploadId, chunkIndex, totalChunks);
+                    if (result.success) {
+                        completed++;
+                        updateChunkProgress(completed, totalChunks, file.name);
+                    } else {
+                        throw new Error(`分片 ${chunkIndex} 上传失败: ${result.message}`);
+                    }
+                });
+                await Promise.all(promises);
+            };
+            for (let i = 0; i < missingChunks.length; i += CONCURRENT_LIMIT) {
+                const batch = missingChunks.slice(i, i + CONCURRENT_LIMIT);
+                await uploadChunkBatch(batch);
+            }
+            return await mergeChunks(uploadId, totalChunks, file.name);
+        }
+
+        async function uploadFiles() {
+            if (selectedFiles.length === 0 || isUploading) return;
+            isUploading = true;
+            const btn = document.getElementById('fileSubmitBtn');
+            const result = document.getElementById('fileResult');
+            setLoading(btn, true); hideBanner(result);
+            const successFiles = [];
+            const failedFiles = [];
+            try {
+                for (const file of selectedFiles) {
+                    try {
+                        if (file.size <= CHUNK_SIZE) {
+                            const formData = new FormData();
+                            formData.append('files', file);
+                            const response = await fetch(`${API_BASE}/api/file/upload`, { method: 'POST', body: formData });
+                            const data = await response.json();
+                            if (data.success && data.results && data.results.length > 0) {
+                                successFiles.push(data.results[0]);
+                            } else {
+                                failedFiles.push({ name: file.name, message: data.message || '上传失败' });
+                            }
+                        } else {
+                            const mergeResult = await uploadFileWithChunks(file);
+                            if (mergeResult.success) {
+                                successFiles.push({
+                                    originalFilename: file.name,
+                                    savedFilename: mergeResult.filename,
+                                    savedFilePath: mergeResult.filePath,
+                                    fileSize: mergeResult.fileSize,
+                                    success: true,
+                                    message: '分片上传成功'
+                                });
+                            } else {
+                                failedFiles.push({ name: file.name, message: mergeResult.message || '分片合并失败' });
+                            }
+                        }
+                    } catch (err) {
+                        failedFiles.push({ name: file.name, message: err.message });
+                    }
+                }
+                if (failedFiles.length === 0) {
+                    const log = successFiles.map(f =>
+                        `<div class="file-log-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.9em;height:0.9em"><polyline points="20 6 9 17 4 12"/></svg> <span class="fname">${escapeHtml(f.originalFilename || f.savedFilename)}</span><span class="fsize">${formatSize(f.fileSize || 0)}</span></div>`
+                    ).join('');
+                    showBanner(result, 'success', `<strong>上传成功 (${successFiles.length}/${selectedFiles.length})</strong><div class="file-log">${log}</div>`);
+                } else {
+                    const successLog = successFiles.map(f =>
+                        `<div class="file-log-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.9em;height:0.9em"><polyline points="20 6 9 17 4 12"/></svg> <span class="fname">${escapeHtml(f.originalFilename || f.savedFilename)}</span><span class="fsize">${formatSize(f.fileSize || 0)}</span></div>`
+                    ).join('');
+                    const failLog = failedFiles.map(f =>
+                        `<div class="file-log-item"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> <span class="fname">${escapeHtml(f.name)}</span><span class="fsize">${escapeHtml(f.message)}</span></div>`
+                    ).join('');
+                    showBanner(result, 'error', `<strong>部分上传失败</strong><div class="file-log">${successLog}${failLog}</div>`);
+                }
+                selectedFiles = []; document.getElementById('fileInput').value = '';
+                loadRecentFiles(); loadDownloadStats();
+            } catch (err) {
+                showBanner(result, 'error', `<strong>上传失败</strong>${escapeHtml(err.message)}`);
+            } finally {
+                isUploading = false;
+                setLoading(btn, false);
+                hideChunkProgress();
+                renderChips();
+            }
+        }
+
+        /* ── PDF ── */
+        let selectedPdf = null;
+        function handlePdfSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) { selectedPdf = files[0]; renderPdfChip(); }
+        }
+        function renderPdfChip() {
+            const chips = document.getElementById('pdfChips');
+            const btn = document.getElementById('pdfSubmitBtn');
+            const resultArea = document.getElementById('pdfResultArea');
+            if (!selectedPdf) { chips.innerHTML = ''; btn.disabled = true; resultArea.innerHTML = ''; return; }
+            chips.innerHTML = `<span class="chip"><span>${escapeHtml(selectedPdf.name)}</span><span class="size">${formatSize(selectedPdf.size)}</span><button class="remove" onclick="removePdf()" title="移除"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></span>`;
+            btn.disabled = false; resultArea.innerHTML = '';
+        }
+        function removePdf() { selectedPdf = null; document.getElementById('pdfInput').value = ''; renderPdfChip(); }
+
+        async function convertPdfToImages() {
+            if (!selectedPdf) return;
+            const btn = document.getElementById('pdfSubmitBtn');
+            const result = document.getElementById('pdfResult');
+            const resultArea = document.getElementById('pdfResultArea');
+            setLoading(btn, true); hideBanner(result);
+            resultArea.innerHTML = '<div style="color:var(--text-tertiary);font-style:italic;font-size:0.8rem;text-align:center;padding:12px;">转换中，请稍候...</div>';
+            const formData = new FormData(); formData.append('file', selectedPdf);
+            try {
+                const response = await fetch(`${API_BASE}/api/pdf/to-images`, { method: 'POST', body: formData });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const disposition = response.headers.get('Content-Disposition');
+                    let filename = 'pdf_images.zip';
+                    if (disposition) { const match = disposition.match(/filename="?([^";\n]+)"?/); if (match) filename = match[1]; }
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = filename;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    selectedPdf = null; document.getElementById('pdfInput').value = ''; renderPdfChip();
+                    resultArea.innerHTML = `<div style="font-weight:600;font-size:0.78rem;color:var(--accent);text-align:center;padding:12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.9em;height:0.9em;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>转换完成，下载已开始</div>`;
+                } else {
+                    const data = await response.json(); resultArea.innerHTML = '';
+                    showBanner(result, 'error', `<strong>转换失败</strong>${escapeHtml(data.message || response.statusText)}`);
+                }
+            } catch (err) {
+                resultArea.innerHTML = '';
+                showBanner(result, 'error', `<strong>请求失败</strong>${escapeHtml(err.message)}`);
+            } finally { setLoading(btn, false); }
+        }
+
+        /* ── Recent Files ── */
+        async function loadRecentFiles() {
+            const container = document.getElementById('recentList');
+            const label = document.getElementById('refreshLabel'); if (label) label.textContent = '...';
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/text/recent`);
+                if (!response.ok) throw new Error('获取失败 (' + response.status + ')');
+                const files = await response.json();
+                if (!files || files.length === 0) {
+                    container.innerHTML = `<div class="list-empty">暂无上传记录</div>`;
+                    document.getElementById('statTexts').textContent = '0';
+                    document.getElementById('statSize').textContent = '0 B';
+                    if (label) label.textContent = '刷新列表'; return;
+                }
+                window._recentContents = {};
+                files.forEach((f, i) => { window._recentContents[i] = f.content || ''; });
+                container.innerHTML = `<ul class="file-list">${files.map((f, index) => `
+                    <li class="file-item" style="animation-delay:${Math.min(index * 0.04, 0.4)}s">
+                        <div class="file-item-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+                        <div class="file-item-body">
+                            <div class="file-item-name">${escapeHtml(f.filename || f.savedFileName)}</div>
+                            ${f.contentPreview ? `<div class="file-item-preview">${escapeHtml(f.contentPreview)}</div>` : ''}
+                            <div class="file-item-meta"><span>${formatDateTime(f.timestamp)}</span><span>${formatSize(f.fileSize)}</span></div>
+                        </div>
+                        <div class="file-item-actions">
+                            <button class="file-item-btn copy" data-key="${index}" onclick="copyToClipboard(this)">复制</button>
+                            <button class="file-item-btn delete" data-filename="${escapeHtml(f.savedFileName)}" onclick="deleteTextFile(this)">
+                                <span class="btn-label">删除</span>
+                                <span class="btn-spin"><div class="spinner"></div></span>
+                            </button>
+                        </div>
+                    </li>`).join('')}</ul>`;
+                document.getElementById('statTexts').textContent = files.length;
+                const totalSize = files.reduce((s, f) => s + (f.fileSize || 0), 0);
+                document.getElementById('statSize').textContent = formatSize(totalSize);
+            } catch (err) {
+                container.innerHTML = `<div class="list-empty" style="color:var(--error)">加载失败：${escapeHtml(err.message)}</div>`;
+            } finally { if (label) label.textContent = '刷新列表'; }
+        }
+
+        /* ── Downloads ── */
+        async function loadDownloads() {
+            const container = document.getElementById('downloadList');
+            const label = document.getElementById('downloadRefreshLabel'); if (label) label.textContent = '...';
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/files/list`);
+                if (!response.ok) throw new Error('获取失败');
+                const files = await response.json();
+                if (!files || files.length === 0) {
+                    container.innerHTML = '<div class="list-empty">暂无文件</div>';
+                    if (label) label.textContent = '刷新列表'; return;
+                }
+                container.innerHTML = `<ul class="file-list">${files.map((f, index) => `
+                    <li class="file-item" style="animation-delay:${Math.min(index * 0.04, 0.4)}s" data-filename="${escapeHtml(f.name)}" onclick="downloadFileFromElement(this)">
+                        <div class="file-item-icon download"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                        <div class="file-item-body">
+                            <div class="file-item-name">${escapeHtml(f.name)}</div>
+                            <div class="file-item-meta"><span>${formatSize(f.size)}</span><span>${f.lastModified || ''}</span></div>
+                        </div>
+                        <div class="file-item-actions">
+                            <button class="file-item-btn delete" data-filename="${escapeHtml(f.name).replace(/"/g, '&quot;')}" onclick="event.stopPropagation();deleteDownloadFile(this)">
+                                <span class="btn-label">删除</span>
+                                <span class="btn-spin"><div class="spinner"></div></span>
+                            </button>
+                        </div>
+                    </li>`).join('')}</ul>`;
+                document.getElementById('statFiles').textContent = files.length;
+            } catch (err) { container.innerHTML = `<div class="list-empty" style="color:var(--error)">加载失败：${escapeHtml(err.message)}</div>`; }
+            finally { if (label) label.textContent = '刷新列表'; }
+        }
+
+        async function downloadFile(fileName) {
+            try {
+                const response = await fetch(`${API_BASE}/api/files/download?name=${encodeURIComponent(fileName)}`);
+                if (!response.ok) { showToast('下载失败: ' + response.status); return; }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                showToast('下载已开始: ' + fileName);
+            } catch (err) { showToast('下载失败: ' + err.message); }
+        }
+        function downloadFileFromElement(el) {
+            const fileName = el.dataset.filename;
+            if (fileName) downloadFile(fileName);
+        }
+        async function deleteDownloadFile(btn) {
+            const fileName = btn.dataset.filename;
+            if (!fileName) return;
+            if (btn.classList.contains('is-busy')) return;
+            if (!confirm('确定要删除 "' + fileName + '" 吗？')) return;
+            btn.classList.add('btn-loading', 'is-busy');
+            try {
+                const response = await fetch(`${API_BASE}/api/files/delete?name=${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) { showToast('已删除'); loadDownloads(); loadDownloadStats(); }
+                else { showToast('删除失败: ' + (data.message || '未知错误')); }
+            } catch (err) { showToast('删除失败: ' + err.message); }
+            finally { btn.classList.remove('btn-loading', 'is-busy'); }
+        }
+
+        /* ── Copy / Delete ── */
+        async function copyToClipboard(btn) {
+            const text = window._recentContents ? window._recentContents[btn.dataset.key] : '';
+            if (!text) { showToast('内容为空'); return; }
+            const mark = () => {
+                btn.classList.add('copied'); btn.textContent = '已复制';
+                showToast('已复制到剪贴板');
+                setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '复制'; }, 1600);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try { await navigator.clipboard.writeText(text); mark(); return; } catch (e) {}
+            }
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+            document.body.appendChild(ta); ta.focus(); ta.setSelectionRange(0, text.length);
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+            ok ? mark() : showToast('复制失败，请手动复制');
+        }
+
+        async function deleteTextFile(btn) {
+            const fileName = btn.dataset.filename;
+            if (!fileName) return;
+            if (btn.classList.contains('is-busy')) return;
+            if (!confirm('确定要删除该文件吗？')) return;
+            btn.classList.add('btn-loading', 'is-busy');
+            try {
+                const response = await fetch(`${API_BASE}/api/text/${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) { await loadRecentFiles(); }
+                else { showToast('删除失败: ' + (data.message || '未知错误')); }
+            } catch (err) { showToast('删除失败: ' + err.message); }
+            finally { btn.classList.remove('btn-loading', 'is-busy'); }
+        }
+
+        async function clearAllFiles() {
+            if (window._clearing) return;
+            window._clearing = true;
+            const btn = document.getElementById('clearBtn');
+            btn.classList.add('btn-loading', 'is-busy');
+            try {
+                const response = await fetch(`${API_BASE}/api/text`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) { await loadRecentFiles(); }
+                else { showToast('清空失败: ' + (data.message || '未知错误')); }
+            } catch (err) { showToast('清空失败: ' + err.message); }
+            finally {
+                window._clearing = false;
+                btn.classList.remove('btn-loading', 'is-busy');
+            }
+        }
+
+        /* ── Refresh Gateway ── */
+        async function refreshGateway() {
+            const btn = event.currentTarget;
+            btn.style.pointerEvents = 'none'; btn.style.opacity = '0.5';
+            try {
+                const response = await fetch(`${API_BASE}/api/web/refresh`);
+                const data = await response.json();
+                if (response.ok) { showToast(data.message || '网关已刷新'); loadRecentFiles(); }
+                else { showToast('刷新网关失败: ' + response.status); }
+            } catch (err) { showToast('刷新网关失败: ' + err.message); }
+            finally {
+                btn.style.pointerEvents = '';
+                setTimeout(() => { btn.style.opacity = ''; }, 300);
+            }
+        }
+
+        /* ── Remote Desktop ── */
+        async function loadRemoteDesktop() {
+            const card = document.getElementById('rdCard');
+            const input = document.getElementById('rdAddress');
+            showToast('正在获取远程桌面地址...');
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/web/remote-desktop`);
+                const text = await response.text();
+                input.value = text || '获取失败';
+                card.classList.remove('hidden');
+            } catch (err) {
+                input.value = '获取失败: ' + err.message;
+                card.classList.remove('hidden');
+            }
+        }
+        function copyRdAddress() {
+            const input = document.getElementById('rdAddress');
+            if (!input.value) return;
+            const label = document.getElementById('rdCopyLabel');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    label.textContent = '已复制';
+                    showToast('地址已复制');
+                    setTimeout(() => label.textContent = '复制地址', 1600);
+                });
+            } else {
+                input.select();
+                document.execCommand('copy');
+                label.textContent = '已复制';
+                showToast('地址已复制');
+                setTimeout(() => label.textContent = '复制地址', 1600);
+            }
+        }
+
+        /* ── Email ── */
+        function openEmailModal() {
+            document.getElementById('emailModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeEmailModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('emailModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        async function sendEmail() {
+            const to = document.getElementById('emailTo').value.trim();
+            const subject = document.getElementById('emailSubject').value.trim();
+            const text = document.getElementById('emailText').value.trim();
+            const btn = document.getElementById('emailSubmitBtn');
+            const result = document.getElementById('emailResult');
+            if (!to || !subject || !text) {
+                showBanner(result, 'error', '请填写完整的邮件信息');
+                return;
+            }
+            setLoading(btn, true); hideBanner(result);
+            try {
+                const response = await fetch(`${API_BASE}/api/email/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ to, subject, text })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showBanner(result, 'success', `<strong>发送成功</strong>${escapeHtml(data.message || '')}`);
+                    document.getElementById('emailTo').value = '';
+                    document.getElementById('emailSubject').value = '';
+                    document.getElementById('emailText').value = '';
+                } else {
+                    showBanner(result, 'error', `<strong>发送失败</strong>${escapeHtml(data.message)}`);
+                }
+            } catch (err) {
+                showBanner(result, 'error', `<strong>请求失败</strong>${escapeHtml(err.message)}`);
+            } finally {
+                setLoading(btn, false);
+            }
+        }
+
+        /* ── About ── */
+        function showAbout() {
+            showToast('Dropnote v1.0 — File & Text Utility');
+        }
+
+        /* ── QR Code ── */
+        function openQrModal() {
+            document.getElementById("qrModal").classList.add("show");
+            document.body.style.overflow = "hidden";
+            loadQrCode();
+        }
+        function closeQrModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById("qrModal").classList.remove("show");
+            document.body.style.overflow = "";
+        }
+        async function loadQrCode() {
+            const loading = document.getElementById("qrLoading");
+            const content = document.getElementById("qrContent");
+            const result = document.getElementById("qrResult");
+            loading.style.display = "block";
+            content.classList.add("hidden");
+            hideBanner(result);
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/web/local-ip-qrcode`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById("qrImage").src = "data:image/png;base64," + data.qrBase64;
+                    document.getElementById("qrUrl").value = data.url;
+                    document.getElementById("qrIp").value = data.ip + ":" + data.port;
+                    loading.style.display = "none";
+                    content.classList.remove("hidden");
+                } else {
+                    showBanner(result, "error", `<strong>加载失败</strong>${escapeHtml(data.message)}`);
+                    loading.style.display = "none";
+                }
+            } catch (err) {
+                showBanner(result, "error", `<strong>请求失败</strong>${escapeHtml(err.message)}`);
+                loading.style.display = "none";
+            }
+        }
+        function copyQrUrl() {
+            const input = document.getElementById("qrUrl");
+            if (!input.value) return;
+            const label = document.getElementById("qrCopyLabel");
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    label.textContent = "已复制";
+                    showToast("地址已复制");
+                    setTimeout(() => label.textContent = "复制地址", 1600);
+                });
+            } else {
+                input.select();
+                document.execCommand("copy");
+                label.textContent = "已复制";
+                showToast("地址已复制");
+                setTimeout(() => label.textContent = "复制地址", 1600);
+            }
+        }
+
+        /* ── Stats ── */
+        async function loadDownloadStats() {
+            try {
+                const response = await fetchWithTimeout(`${API_BASE}/api/files/list`);
+                if (!response.ok) return;
+                const files = await response.json();
+                const count = (files && files.length) ? files.length : '0';
+                document.getElementById('statFiles').textContent = count;
+            } catch (e) {
+                document.getElementById('statFiles').textContent = '&mdash;';
+            }
+        }
+
+        /* ── Utilities ── */
+        function setLoading(btn, loading) {
+            const orig = btn.dataset.orig || (btn.querySelector('.btn-label') ? btn.querySelector('.btn-label').textContent : btn.textContent);
+            if (!btn.dataset.orig) btn.dataset.orig = orig;
+            if (loading) {
+                if (btn.blur) btn.blur();
+                btn.disabled = true;
+                const label = btn.querySelector('.btn-label');
+                if (label) {
+                    btn.classList.add('btn-loading');
+                } else {
+                    btn.innerHTML = '<div class="spinner"></div><span>处理中</span>';
+                }
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('btn-loading');
+                const label = btn.querySelector('.btn-label');
+                if (label) label.textContent = btn.dataset.orig;
+            }
+        }
+        function showBanner(el, type, html) { el.className = `banner show ${type}`; el.innerHTML = html.replace(/\n/g, '<br>'); }
+        function hideBanner(el) { el.className = 'banner'; }
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024, sizes = ['B','KB','MB','GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        function formatDateTime(iso) {
+            if (!iso) return '未知';
+            try {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                const pad = n => n < 10 ? '0'+n : n;
+                return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch { return iso; }
+        }
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg; toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2400);
+        }
+
+        /* ── Drag & Drop ── */
+        const dz = document.getElementById('dropzone');
+        if (dz) {
+            dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+            dz.addEventListener('dragleave', e => { e.preventDefault(); dz.classList.remove('dragover'); });
+            dz.addEventListener('drop', e => {
+                e.preventDefault(); dz.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files);
+                const input = document.getElementById('fileInput');
+                const dt = new DataTransfer(); files.forEach(f => dt.items.add(f));
+                input.files = dt.files; handleFileSelect({ target: input });
+            });
+        }
+
+        /* ── Init ── */
+        (function init() {
+            const SAFETY_TIMEOUT = 8000;
+            const timers = [];
+            ['recentList'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                var original = el.innerHTML;
+                timers.push(setTimeout(function() {
+                    if (el.innerHTML === original) el.innerHTML = '<div class="list-empty">暂无数据（服务器未响应）</div>';
+                }, SAFETY_TIMEOUT));
+            });
+            function clearTimers() { timers.forEach(clearTimeout); }
+            Promise.allSettled([ loadRecentFiles(), loadDownloadStats() ]).finally(clearTimers);
+        })();
+    </script>
+</body>
+</html>
